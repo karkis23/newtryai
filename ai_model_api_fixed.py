@@ -1,12 +1,9 @@
 from flask import Flask, request, jsonify
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
 import json
 import os
 import logging
+from datetime import datetime
 from collections import deque
-import pickle
 
 app = Flask(__name__)
 
@@ -31,27 +28,7 @@ class ProfessionalTradingAI:
                 'candle_reversal': 0.3
             }
         }
-        self.load_historical_data()
         logger.info("Professional Trading AI initialized")
-    
-    def load_historical_data(self):
-        """Load any existing model data"""
-        try:
-            if os.path.exists('trading_ai_data.pkl'):
-                with open('trading_ai_data.pkl', 'rb') as f:
-                    saved_data = pickle.load(f)
-                    self.model_data.update(saved_data)
-                logger.info("Loaded historical trading data")
-        except Exception as e:
-            logger.warning(f"Could not load historical data: {e}")
-    
-    def save_model_data(self):
-        """Save current model data"""
-        try:
-            with open('trading_ai_data.pkl', 'wb') as f:
-                pickle.dump(self.model_data, f)
-        except Exception as e:
-            logger.error(f"Could not save model data: {e}")
     
     def analyze_rsi_signals(self, rsi):
         """Professional RSI analysis"""
@@ -253,10 +230,6 @@ class ProfessionalTradingAI:
             }
             self.model_data['signals'].append(signal_data)
             
-            # Save periodically
-            if len(self.model_data['signals']) % 50 == 0:
-                self.save_model_data()
-            
             return {
                 'signal': signal,
                 'confidence': round(confidence, 3),
@@ -338,25 +311,6 @@ class ProfessionalTradingAI:
             return "BEARISH_TREND"
         else:
             return "SIDEWAYS_MARKET"
-    
-    def update_accuracy(self, predicted_signal, actual_outcome):
-        """Update model accuracy based on actual outcomes"""
-        self.model_data['accuracy_tracker']['total'] += 1
-        if actual_outcome == 'correct':
-            self.model_data['accuracy_tracker']['correct'] += 1
-        
-        # Adjust pattern weights based on performance
-        accuracy = self.model_data['accuracy_tracker']['correct'] / self.model_data['accuracy_tracker']['total']
-        if accuracy < 0.6:  # If accuracy drops below 60%, adjust weights
-            self.adjust_pattern_weights()
-    
-    def adjust_pattern_weights(self):
-        """Adjust pattern weights based on recent performance"""
-        # Simple weight adjustment - can be enhanced
-        for key in self.model_data['pattern_weights']:
-            current_weight = self.model_data['pattern_weights'][key]
-            # Slightly reduce weights if performance is poor
-            self.model_data['pattern_weights'][key] = max(current_weight * 0.95, 0.1)
 
 # Initialize the AI model
 trading_ai = ProfessionalTradingAI()
@@ -410,8 +364,9 @@ def update_accuracy():
         predicted_signal = data.get('predicted_signal')
         actual_outcome = data.get('actual_outcome')  # 'correct' or 'incorrect'
         
-        trading_ai.update_accuracy(predicted_signal, actual_outcome)
-        trading_ai.save_model_data()
+        trading_ai.model_data['accuracy_tracker']['total'] += 1
+        if actual_outcome == 'correct':
+            trading_ai.model_data['accuracy_tracker']['correct'] += 1
         
         return jsonify({'message': 'Accuracy updated successfully'})
     
