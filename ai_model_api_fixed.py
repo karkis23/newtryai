@@ -1,12 +1,9 @@
 from flask import Flask, request, jsonify
-import numpy as np
-import pandas as pd
-from datetime import datetime, timedelta
 import json
 import os
 import logging
+from datetime import datetime
 from collections import deque
-import pickle
 
 app = Flask(__name__)
 
@@ -20,226 +17,347 @@ class ProfessionalTradingAI:
             'signals': deque(maxlen=1000),  # Store last 1000 signals for learning
             'accuracy_tracker': {'correct': 0, 'total': 0},
             'pattern_weights': {
-                'rsi_oversold': 0.8,
-                'rsi_overbought': 0.8,
-                'macd_bullish': 0.7,
-                'macd_bearish': 0.7,
-                'momentum_strong': 0.6,
-                'volume_surge': 0.5,
-                'sentiment_alignment': 0.4,
-                'writers_support': 0.9,
-                'candle_reversal': 0.3
+                'rsi_neutral': 0.6,
+                'ema_bearish': 0.7,
+                'sma_bearish': 0.7,
+                'macd_neutral': 0.5,
+                'vix_calm': 0.8,
+                'bollinger_within': 0.4,
+                'cci_sell': 0.8,
+                'supertrend_bullish': 0.9,
+                'volume_weak': -0.3,
+                'aroon_uptrend': 0.7,
+                'parabolic_bearish': 0.6,
+                'mfi_oversold': 0.8,
+                'price_ranging': -0.2,
+                'volume_strength_weak': -0.4
             }
         }
-        self.load_historical_data()
         logger.info("Professional Trading AI initialized")
     
-    def load_historical_data(self):
-        """Load any existing model data"""
-        try:
-            if os.path.exists('trading_ai_data.pkl'):
-                with open('trading_ai_data.pkl', 'rb') as f:
-                    saved_data = pickle.load(f)
-                    self.model_data.update(saved_data)
-                logger.info("Loaded historical trading data")
-        except Exception as e:
-            logger.warning(f"Could not load historical data: {e}")
-    
-    def save_model_data(self):
-        """Save current model data"""
-        try:
-            with open('trading_ai_data.pkl', 'wb') as f:
-                pickle.dump(self.model_data, f)
-        except Exception as e:
-            logger.error(f"Could not save model data: {e}")
-    
-    def analyze_rsi_signals(self, rsi):
-        """Professional RSI analysis"""
+    def analyze_comprehensive_signals(self, data):
+        """Analyze comprehensive technical indicators"""
         signals = []
         strength = 0
         
-        if rsi < 30:
+        # RSI Analysis
+        rsi_value = float(data.get('RSI', {}).get('rsi', 50))
+        rsi_status = data.get('RSI', {}).get('status', 'Neutral')
+        
+        if rsi_value < 35:  # NIFTY oversold threshold
             signals.append("RSI_OVERSOLD")
-            strength += self.model_data['pattern_weights']['rsi_oversold']
-        elif rsi > 70:
+            strength += 0.8
+        elif rsi_value > 65:  # NIFTY overbought threshold
             signals.append("RSI_OVERBOUGHT")
-            strength += self.model_data['pattern_weights']['rsi_overbought']
-        elif 45 <= rsi <= 55:
+            strength -= 0.8
+        elif rsi_status == 'Neutral':
             signals.append("RSI_NEUTRAL")
-            strength += 0.1
+            strength += self.model_data['pattern_weights']['rsi_neutral']
         
-        return signals, strength
-    
-    def analyze_macd_signals(self, macd, signal_line=None):
-        """Professional MACD analysis"""
-        signals = []
-        strength = 0
+        # EMA Analysis
+        ema_status = data.get('EMA20', {}).get('status', 'Neutral')
+        if ema_status == 'Bearish':
+            signals.append("EMA_BEARISH")
+            strength -= self.model_data['pattern_weights']['ema_bearish']
+        elif ema_status == 'Bullish':
+            signals.append("EMA_BULLISH")
+            strength += self.model_data['pattern_weights']['ema_bearish']
         
-        if isinstance(macd, dict):
-            macd_line = macd.get('macd', 0)
-            signal_line = macd.get('signal', 0)
-            histogram = macd.get('histogram', 0)
-        else:
-            macd_line = float(macd)
-            histogram = 0
+        # SMA Analysis
+        sma_status = data.get('SMA50', {}).get('status', 'Neutral')
+        if sma_status == 'Bearish':
+            signals.append("SMA_BEARISH")
+            strength -= self.model_data['pattern_weights']['sma_bearish']
+        elif sma_status == 'Bullish':
+            signals.append("SMA_BULLISH")
+            strength += self.model_data['pattern_weights']['sma_bearish']
         
-        if macd_line > 0 and histogram > 0:
+        # MACD Analysis
+        macd_status = data.get('MACD', {}).get('status', 'Neutral')
+        macd_histogram = float(data.get('MACD', {}).get('histogram', 0))
+        
+        if macd_status == 'Bullish' or macd_histogram > 0:
             signals.append("MACD_BULLISH")
-            strength += self.model_data['pattern_weights']['macd_bullish']
-        elif macd_line < 0 and histogram < 0:
+            strength += 0.7
+        elif macd_status == 'Bearish' or macd_histogram < 0:
             signals.append("MACD_BEARISH")
-            strength += self.model_data['pattern_weights']['macd_bearish']
+            strength -= 0.7
+        else:
+            signals.append("MACD_NEUTRAL")
+            strength += self.model_data['pattern_weights']['macd_neutral']
+        
+        # VIX Analysis
+        vix_value = float(data.get('VIX', {}).get('vix', 15))
+        vix_status = data.get('VIX', {}).get('status', 'Normal')
+        
+        if vix_status == 'Calm Market' or vix_value < 15:
+            signals.append("VIX_CALM")
+            strength += self.model_data['pattern_weights']['vix_calm']
+        elif vix_value > 20:
+            signals.append("VIX_HIGH")
+            strength -= 0.5
+        
+        # Bollinger Bands Analysis
+        bb_status = data.get('BollingerBands', {}).get('status', 'Within Bands')
+        if bb_status == 'Within Bands':
+            signals.append("BOLLINGER_WITHIN")
+            strength += self.model_data['pattern_weights']['bollinger_within']
+        elif bb_status == 'Above Upper':
+            signals.append("BOLLINGER_OVERBOUGHT")
+            strength -= 0.6
+        elif bb_status == 'Below Lower':
+            signals.append("BOLLINGER_OVERSOLD")
+            strength += 0.6
+        
+        # CCI Analysis
+        cci_value = float(data.get('CCI', {}).get('value', 0))
+        cci_status = data.get('CCI', {}).get('status', 'Neutral')
+        
+        if cci_status == 'Sell' or cci_value < -100:
+            signals.append("CCI_SELL")
+            strength -= self.model_data['pattern_weights']['cci_sell']
+        elif cci_status == 'Buy' or cci_value > 100:
+            signals.append("CCI_BUY")
+            strength += self.model_data['pattern_weights']['cci_sell']
+        
+        # SuperTrend Analysis
+        supertrend_status = data.get('SuperTrend', {}).get('status', 'Neutral')
+        if supertrend_status == 'Bullish':
+            signals.append("SUPERTREND_BULLISH")
+            strength += self.model_data['pattern_weights']['supertrend_bullish']
+        elif supertrend_status == 'Bearish':
+            signals.append("SUPERTREND_BEARISH")
+            strength -= self.model_data['pattern_weights']['supertrend_bullish']
+        
+        # Volume Analysis
+        volume_status = data.get('VolumeIndicators', {}).get('status', 'Normal')
+        volume_strength = data.get('VolumeStrength', {}).get('type', 'Normal')
+        
+        if volume_status == 'Weak' or volume_strength == 'Weak Volume':
+            signals.append("VOLUME_WEAK")
+            strength += self.model_data['pattern_weights']['volume_weak']
+        elif volume_status == 'Strong':
+            signals.append("VOLUME_STRONG")
+            strength += 0.5
+        
+        # Aroon Analysis
+        aroon_status = data.get('Aroon', {}).get('status', 'Neutral')
+        if aroon_status == 'Uptrend':
+            signals.append("AROON_UPTREND")
+            strength += self.model_data['pattern_weights']['aroon_uptrend']
+        elif aroon_status == 'Downtrend':
+            signals.append("AROON_DOWNTREND")
+            strength -= self.model_data['pattern_weights']['aroon_uptrend']
+        
+        # Parabolic SAR Analysis
+        psar_status = data.get('ParabolicSAR', {}).get('status', 'Neutral')
+        if psar_status == 'Bearish':
+            signals.append("PARABOLIC_BEARISH")
+            strength -= self.model_data['pattern_weights']['parabolic_bearish']
+        elif psar_status == 'Bullish':
+            signals.append("PARABOLIC_BULLISH")
+            strength += self.model_data['pattern_weights']['parabolic_bearish']
+        
+        # MFI Analysis
+        mfi_value = float(data.get('MFI', {}).get('value', 50))
+        mfi_status = data.get('MFI', {}).get('status', 'Neutral')
+        
+        if mfi_status == 'Oversold' or mfi_value < 20:
+            signals.append("MFI_OVERSOLD")
+            strength += self.model_data['pattern_weights']['mfi_oversold']
+        elif mfi_status == 'Overbought' or mfi_value > 80:
+            signals.append("MFI_OVERBOUGHT")
+            strength -= self.model_data['pattern_weights']['mfi_oversold']
+        
+        # Price Action Analysis
+        price_action = data.get('PriceAction', {}).get('type', 'Normal')
+        if price_action == 'Ranging':
+            signals.append("PRICE_RANGING")
+            strength += self.model_data['pattern_weights']['price_ranging']
+        elif price_action == 'Trending':
+            signals.append("PRICE_TRENDING")
+            strength += 0.3
         
         return signals, strength
     
-    def analyze_momentum_signals(self, momentum):
-        """Professional momentum analysis"""
+    def analyze_volume_patterns(self, data):
+        """Analyze volume patterns and strength"""
         signals = []
         strength = 0
         
-        if momentum > 2:
-            signals.append("MOMENTUM_STRONG_BULLISH")
-            strength += self.model_data['pattern_weights']['momentum_strong']
-        elif momentum < -2:
-            signals.append("MOMENTUM_STRONG_BEARISH")
-            strength += self.model_data['pattern_weights']['momentum_strong']
-        elif momentum > 0.5:
-            signals.append("MOMENTUM_WEAK_BULLISH")
-            strength += 0.3
-        elif momentum < -0.5:
-            signals.append("MOMENTUM_WEAK_BEARISH")
-            strength += 0.3
+        # Volume Spike Analysis
+        volume_spike = data.get('VolumeSpike', {}).get('spike', False)
+        if volume_spike:
+            signals.append("VOLUME_SPIKE")
+            strength += 0.6
+        
+        # Volume Strength Analysis
+        volume_strength_score = data.get('VolumeStrength', {}).get('score', 0)
+        if volume_strength_score < -0.5:
+            signals.append("VOLUME_STRENGTH_WEAK")
+            strength += self.model_data['pattern_weights']['volume_strength_weak']
+        elif volume_strength_score > 0.5:
+            signals.append("VOLUME_STRENGTH_STRONG")
+            strength += 0.5
         
         return signals, strength
     
-    def analyze_volume_signals(self, volume_ratio):
-        """Professional volume analysis"""
+    def analyze_trend_indicators(self, data):
+        """Analyze trend-based indicators"""
         signals = []
         strength = 0
         
-        if volume_ratio > 1.5:
-            signals.append("VOLUME_SURGE")
-            strength += self.model_data['pattern_weights']['volume_surge']
-        elif volume_ratio > 1.2:
-            signals.append("VOLUME_ABOVE_AVERAGE")
-            strength += 0.3
-        elif volume_ratio < 0.8:
-            signals.append("VOLUME_LOW")
+        # ADX Trend Strength
+        adx_value = float(data.get('ADX', {}).get('value', 20))
+        if adx_value > 25:
+            signals.append("STRONG_TREND")
+            strength += 0.4
+        elif adx_value < 20:
+            signals.append("WEAK_TREND")
             strength -= 0.2
         
-        return signals, strength
-    
-    def analyze_sentiment_alignment(self, sentiment, writers_zone):
-        """Analyze sentiment and writers zone alignment"""
-        signals = []
-        strength = 0
+        # Stochastic Analysis
+        stoch_value = float(data.get('Stochastic', {}).get('value', 50))
+        stoch_status = data.get('Stochastic', {}).get('status', 'Neutral')
         
-        # Sentiment analysis
-        if sentiment == 'BULLISH':
-            signals.append("SENTIMENT_BULLISH")
-            strength += self.model_data['pattern_weights']['sentiment_alignment']
-        elif sentiment == 'BEARISH':
-            signals.append("SENTIMENT_BEARISH")
-            strength += self.model_data['pattern_weights']['sentiment_alignment']
+        if stoch_value < 20:
+            signals.append("STOCHASTIC_OVERSOLD")
+            strength += 0.6
+        elif stoch_value > 80:
+            signals.append("STOCHASTIC_OVERBOUGHT")
+            strength -= 0.6
         
-        # Writers zone analysis (most important)
-        if writers_zone == 'BULLISH':
-            signals.append("WRITERS_BULLISH_SUPPORT")
-            strength += self.model_data['pattern_weights']['writers_support']
-        elif writers_zone == 'BEARISH':
-            signals.append("WRITERS_BEARISH_RESISTANCE")
-            strength += self.model_data['pattern_weights']['writers_support']
-        
-        # Alignment bonus
-        if (sentiment == 'BULLISH' and writers_zone == 'BULLISH') or \
-           (sentiment == 'BEARISH' and writers_zone == 'BEARISH'):
-            signals.append("SENTIMENT_WRITERS_ALIGNED")
-            strength += 0.3
-        
-        return signals, strength
-    
-    def analyze_candle_patterns(self, candle_pattern):
-        """Analyze candle patterns"""
-        signals = []
-        strength = 0
-        
-        reversal_patterns = ['DOJI', 'HAMMER', 'SHOOTING_STAR']
-        continuation_patterns = ['MARUBOZU']
-        
-        if candle_pattern in reversal_patterns:
-            signals.append(f"CANDLE_{candle_pattern}_REVERSAL")
-            strength += self.model_data['pattern_weights']['candle_reversal']
-        elif candle_pattern in continuation_patterns:
-            signals.append(f"CANDLE_{candle_pattern}_CONTINUATION")
+        # ATR Volatility Analysis
+        atr_value = float(data.get('ATR', {}).get('value', 20))
+        if atr_value > 25:
+            signals.append("HIGH_VOLATILITY")
+            strength -= 0.3
+        elif atr_value < 15:
+            signals.append("LOW_VOLATILITY")
             strength += 0.2
         
         return signals, strength
     
-    def calculate_vix_filter(self, vix):
-        """VIX-based market condition analysis"""
-        if vix > 25:
-            return "HIGH_VOLATILITY", -0.5
-        elif vix > 18:
-            return "MEDIUM_VOLATILITY", -0.2
-        elif vix < 12:
-            return "LOW_VOLATILITY", 0.1
+    def analyze_price_position(self, data):
+        """Analyze price position relative to key levels"""
+        signals = []
+        strength = 0
+        
+        ltp = float(data.get('LTP', 0))
+        
+        # Bollinger Bands Position
+        bb_upper = float(data.get('BollingerBands', {}).get('upper', ltp + 50))
+        bb_lower = float(data.get('BollingerBands', {}).get('lower', ltp - 50))
+        
+        bb_position = (ltp - bb_lower) / (bb_upper - bb_lower) if bb_upper != bb_lower else 0.5
+        
+        if bb_position > 0.8:
+            signals.append("NEAR_BB_UPPER")
+            strength -= 0.5
+        elif bb_position < 0.2:
+            signals.append("NEAR_BB_LOWER")
+            strength += 0.5
+        
+        # EMA Position
+        ema_value = float(data.get('EMA20', {}).get('ema', ltp))
+        if ltp > ema_value:
+            signals.append("ABOVE_EMA")
+            strength += 0.3
         else:
-            return "NORMAL_VOLATILITY", 0.0
+            signals.append("BELOW_EMA")
+            strength -= 0.3
+        
+        # SMA Position
+        sma_value = float(data.get('SMA50', {}).get('sma', ltp))
+        if ltp > sma_value:
+            signals.append("ABOVE_SMA")
+            strength += 0.3
+        else:
+            signals.append("BELOW_SMA")
+            strength -= 0.3
+        
+        return signals, strength
+    
+    def analyze_oscillators(self, data):
+        """Analyze oscillator indicators"""
+        signals = []
+        strength = 0
+        
+        # CCI Analysis
+        cci_value = float(data.get('CCI', {}).get('value', 0))
+        cci_status = data.get('CCI', {}).get('status', 'Neutral')
+        
+        if cci_status == 'Sell' or cci_value < -100:
+            signals.append("CCI_OVERSOLD")
+            strength += 0.7
+        elif cci_status == 'Buy' or cci_value > 100:
+            signals.append("CCI_OVERBOUGHT")
+            strength -= 0.7
+        
+        # MFI Analysis
+        mfi_value = float(data.get('MFI', {}).get('value', 50))
+        mfi_status = data.get('MFI', {}).get('status', 'Neutral')
+        
+        if mfi_status == 'Oversold' or mfi_value < 20:
+            signals.append("MFI_OVERSOLD")
+            strength += 0.8
+        elif mfi_status == 'Overbought' or mfi_value > 80:
+            signals.append("MFI_OVERBOUGHT")
+            strength -= 0.8
+        
+        return signals, strength
     
     def professional_signal_generation(self, data):
         """Generate professional trading signals"""
         try:
-            # Extract data
-            rsi = float(data.get('rsi', 50))
-            macd = data.get('macd', 0)
-            momentum = float(data.get('momentum', 0))
-            volume_ratio = float(data.get('volumeRatio', 1))
-            vix = float(data.get('vix', 15))
-            sentiment = data.get('sentiment', 'NEUTRAL')
-            writers_zone = data.get('writersZone', 'NEUTRAL')
-            candle_pattern = data.get('candlePattern', 'NORMAL')
+            # Handle both old and new data formats
+            if isinstance(data, list) and len(data) > 0:
+                # New format - extract from array
+                market_data = data[0]
+            else:
+                # Old format - use directly
+                market_data = data
+            
+            # Extract key values
+            ltp = float(market_data.get('LTP', 0))
+            vix_value = float(market_data.get('VIX', {}).get('vix', 15))
+            rsi_value = float(market_data.get('RSI', {}).get('rsi', 50))
             
             # Analyze all components
             all_signals = []
             total_strength = 0
             
-            # RSI Analysis
-            rsi_signals, rsi_strength = self.analyze_rsi_signals(rsi)
-            all_signals.extend(rsi_signals)
-            total_strength += rsi_strength
+            # Comprehensive Technical Analysis
+            comp_signals, comp_strength = self.analyze_comprehensive_signals(market_data)
+            all_signals.extend(comp_signals)
+            total_strength += comp_strength
             
-            # MACD Analysis
-            macd_signals, macd_strength = self.analyze_macd_signals(macd)
-            all_signals.extend(macd_signals)
-            total_strength += macd_strength
+            # Volume Pattern Analysis
+            vol_signals, vol_strength = self.analyze_volume_patterns(market_data)
+            all_signals.extend(vol_signals)
+            total_strength += vol_strength
             
-            # Momentum Analysis
-            momentum_signals, momentum_strength = self.analyze_momentum_signals(momentum)
-            all_signals.extend(momentum_signals)
-            total_strength += momentum_strength
+            # Trend Indicator Analysis
+            trend_signals, trend_strength = self.analyze_trend_indicators(market_data)
+            all_signals.extend(trend_signals)
+            total_strength += trend_strength
             
-            # Volume Analysis
-            volume_signals, volume_strength = self.analyze_volume_signals(volume_ratio)
-            all_signals.extend(volume_signals)
-            total_strength += volume_strength
+            # Price Position Analysis
+            price_signals, price_strength = self.analyze_price_position(market_data)
+            all_signals.extend(price_signals)
+            total_strength += price_strength
             
-            # Sentiment & Writers Zone Analysis
-            sentiment_signals, sentiment_strength = self.analyze_sentiment_alignment(sentiment, writers_zone)
-            all_signals.extend(sentiment_signals)
-            total_strength += sentiment_strength
+            # Oscillator Analysis
+            osc_signals, osc_strength = self.analyze_oscillators(market_data)
+            all_signals.extend(osc_signals)
+            total_strength += osc_strength
             
-            # Candle Pattern Analysis
-            candle_signals, candle_strength = self.analyze_candle_patterns(candle_pattern)
-            all_signals.extend(candle_signals)
-            total_strength += candle_strength
-            
-            # VIX Filter
-            vix_condition, vix_adjustment = self.calculate_vix_filter(vix)
-            total_strength += vix_adjustment
+            # VIX Filter and Market Regime
+            vix_condition = self.determine_vix_condition(vix_value)
             
             # Professional Decision Making
             signal, confidence = self.make_professional_decision(
-                all_signals, total_strength, rsi, momentum, sentiment, writers_zone, vix
+                all_signals, total_strength, market_data
             )
             
             # Store for learning
@@ -249,13 +367,9 @@ class ProfessionalTradingAI:
                 'confidence': confidence,
                 'all_signals': all_signals,
                 'strength': total_strength,
-                'market_data': data
+                'market_data': market_data
             }
             self.model_data['signals'].append(signal_data)
-            
-            # Save periodically
-            if len(self.model_data['signals']) % 50 == 0:
-                self.save_model_data()
             
             return {
                 'signal': signal,
@@ -264,7 +378,9 @@ class ProfessionalTradingAI:
                     'detected_signals': all_signals,
                     'total_strength': round(total_strength, 2),
                     'vix_condition': vix_condition,
-                    'market_regime': self.determine_market_regime(rsi, vix, sentiment)
+                    'market_regime': self.determine_market_regime(market_data),
+                    'ltp': ltp,
+                    'signal_count': len(all_signals)
                 },
                 'timestamp': datetime.now().isoformat()
             }
@@ -278,18 +394,35 @@ class ProfessionalTradingAI:
                 'timestamp': datetime.now().isoformat()
             }
     
-    def make_professional_decision(self, signals, strength, rsi, momentum, sentiment, writers_zone, vix):
+    def determine_vix_condition(self, vix):
+        """Determine VIX condition"""
+        if vix > 25:
+            return "EXTREME_VOLATILITY"
+        elif vix > 18:
+            return "HIGH_VOLATILITY"
+        elif vix < 12:
+            return "LOW_VOLATILITY"
+        else:
+            return "NORMAL_VOLATILITY"
+    
+    def make_professional_decision(self, signals, strength, market_data):
         """Make professional trading decision based on all factors"""
         
+        # Extract key values
+        vix_value = float(market_data.get('VIX', {}).get('vix', 15))
+        rsi_value = float(market_data.get('RSI', {}).get('rsi', 50))
+        supertrend_status = market_data.get('SuperTrend', {}).get('status', 'Neutral')
+        aroon_status = market_data.get('Aroon', {}).get('status', 'Neutral')
+        
         # VIX Filter - No trading in high volatility
-        if vix > 18:
+        if vix_value > 18:
             return 'HOLD', 0.0
         
         # Count bullish and bearish signals
         bullish_signals = [s for s in signals if any(word in s for word in 
-                          ['BULLISH', 'OVERSOLD', 'SURGE', 'SUPPORT'])]
+                          ['BULLISH', 'OVERSOLD', 'BUY', 'UPTREND', 'STRONG', 'ABOVE'])]
         bearish_signals = [s for s in signals if any(word in s for word in 
-                          ['BEARISH', 'OVERBOUGHT', 'RESISTANCE'])]
+                          ['BEARISH', 'OVERBOUGHT', 'SELL', 'DOWNTREND', 'WEAK', 'BELOW'])]
         
         bullish_count = len(bullish_signals)
         bearish_count = len(bearish_signals)
@@ -300,63 +433,51 @@ class ProfessionalTradingAI:
         # Professional decision logic
         if strength > 1.5 and bullish_count >= 3:
             # Strong bullish setup
-            if writers_zone == 'BULLISH' and rsi < 60:
+            if supertrend_status == 'Bullish' and rsi_value < 60:
                 return 'BUY_CE', min(base_confidence + 0.2, 0.95)
-            elif sentiment == 'BULLISH' and momentum > 1:
+            elif aroon_status == 'Uptrend' and rsi_value < 65:
                 return 'BUY_CE', min(base_confidence + 0.1, 0.85)
             else:
                 return 'BUY_CE', base_confidence
                 
         elif strength < -1.5 and bearish_count >= 3:
             # Strong bearish setup
-            if writers_zone == 'BEARISH' and rsi > 40:
+            if supertrend_status == 'Bearish' and rsi_value > 40:
                 return 'BUY_PE', min(base_confidence + 0.2, 0.95)
-            elif sentiment == 'BEARISH' and momentum < -1:
+            elif aroon_status == 'Downtrend' and rsi_value > 35:
                 return 'BUY_PE', min(base_confidence + 0.1, 0.85)
             else:
                 return 'BUY_PE', base_confidence
                 
-        elif abs(strength) > 0.8:
+        elif abs(strength) > 1.0:
             # Moderate signals
             if strength > 0 and bullish_count > bearish_count:
-                return 'BUY_CE', max(base_confidence, 0.6)
+                return 'BUY_CE', max(base_confidence, 0.65)
             elif strength < 0 and bearish_count > bullish_count:
-                return 'BUY_PE', max(base_confidence, 0.6)
+                return 'BUY_PE', max(base_confidence, 0.65)
         
         # Default to HOLD
         return 'HOLD', 0.0
     
-    def determine_market_regime(self, rsi, vix, sentiment):
+    def determine_market_regime(self, data):
         """Determine current market regime"""
-        if vix > 20:
+        vix_value = float(data.get('VIX', {}).get('vix', 15))
+        rsi_value = float(data.get('RSI', {}).get('rsi', 50))
+        supertrend_status = data.get('SuperTrend', {}).get('status', 'Neutral')
+        price_action = data.get('PriceAction', {}).get('type', 'Normal')
+        
+        if vix_value > 20:
             return "HIGH_VOLATILITY"
-        elif vix < 12:
+        elif vix_value < 12:
             return "LOW_VOLATILITY"
-        elif sentiment == 'BULLISH' and rsi < 70:
+        elif supertrend_status == 'Bullish' and rsi_value < 70:
             return "BULLISH_TREND"
-        elif sentiment == 'BEARISH' and rsi > 30:
+        elif supertrend_status == 'Bearish' and rsi_value > 30:
             return "BEARISH_TREND"
+        elif price_action == 'Ranging':
+            return "SIDEWAYS_RANGING"
         else:
             return "SIDEWAYS_MARKET"
-    
-    def update_accuracy(self, predicted_signal, actual_outcome):
-        """Update model accuracy based on actual outcomes"""
-        self.model_data['accuracy_tracker']['total'] += 1
-        if actual_outcome == 'correct':
-            self.model_data['accuracy_tracker']['correct'] += 1
-        
-        # Adjust pattern weights based on performance
-        accuracy = self.model_data['accuracy_tracker']['correct'] / self.model_data['accuracy_tracker']['total']
-        if accuracy < 0.6:  # If accuracy drops below 60%, adjust weights
-            self.adjust_pattern_weights()
-    
-    def adjust_pattern_weights(self):
-        """Adjust pattern weights based on recent performance"""
-        # Simple weight adjustment - can be enhanced
-        for key in self.model_data['pattern_weights']:
-            current_weight = self.model_data['pattern_weights'][key]
-            # Slightly reduce weights if performance is poor
-            self.model_data['pattern_weights'][key] = max(current_weight * 0.95, 0.1)
 
 # Initialize the AI model
 trading_ai = ProfessionalTradingAI()
@@ -410,8 +531,9 @@ def update_accuracy():
         predicted_signal = data.get('predicted_signal')
         actual_outcome = data.get('actual_outcome')  # 'correct' or 'incorrect'
         
-        trading_ai.update_accuracy(predicted_signal, actual_outcome)
-        trading_ai.save_model_data()
+        trading_ai.model_data['accuracy_tracker']['total'] += 1
+        if actual_outcome == 'correct':
+            trading_ai.model_data['accuracy_tracker']['correct'] += 1
         
         return jsonify({'message': 'Accuracy updated successfully'})
     
