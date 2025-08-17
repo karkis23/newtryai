@@ -2,18 +2,20 @@
 
 ## 📋 Overview
 
-This guide provides step-by-step instructions for deploying the AI trading model on Render.com with a lightweight, dependency-free implementation.
+This guide provides step-by-step instructions for deploying the AI trading model on Render.com with a lightweight, dependency-free implementation that works with your new comprehensive technical indicators.
 
 ## 🔧 Fixed Deployment Issues
 
 ### Problem Solved
-The original deployment failed due to pandas compilation issues on Render.com's Python 3.13 environment. The solution removes heavy dependencies while maintaining full functionality.
+The original deployment failed due to pandas compilation issues on Render.com's Python 3.13 environment. The solution removes heavy dependencies while maintaining full functionality and now supports your comprehensive technical indicator format.
 
 ### Changes Made
 - **Removed pandas**: Eliminated the problematic dependency
 - **Removed numpy**: Simplified to pure Python implementation
 - **Kept Flask**: Lightweight web framework for API endpoints
 - **Added Gunicorn**: Production WSGI server
+- **Updated Analysis**: Now handles comprehensive technical indicators
+- **Enhanced Logic**: Supports new indicator format with multiple signals
 
 ## 🚀 Deployment Steps
 
@@ -67,16 +69,18 @@ Once deployed, test your API:
 # Health check
 curl https://your-app-name.onrender.com/health
 
-# Test prediction
+# Test prediction with new format
 curl -X POST https://your-app-name.onrender.com/predict \
   -H "Content-Type: application/json" \
   -d '{
-    "rsi": 30,
-    "momentum": 2.5,
-    "volumeRatio": 1.8,
-    "vix": 15,
-    "sentiment": "BULLISH",
-    "writersZone": "BULLISH"
+    "LTP": 24631.3,
+    "RSI": {"rsi": "44.08", "status": "Neutral"},
+    "EMA20": {"ema": "24634.21", "status": "Bearish"},
+    "MACD": {"macd": "-2.72", "signal": "-2.72", "histogram": "0.00", "status": "Neutral"},
+    "VIX": {"vix": "12.36", "status": "Calm Market"},
+    "SuperTrend": {"status": "Bullish"},
+    "CCI": {"value": "-130.28", "status": "Sell"},
+    "MFI": {"value": "0.00", "status": "Oversold"}
   }'
 ```
 
@@ -102,16 +106,24 @@ GET /health
 POST /predict
 Content-Type: application/json
 
-{
-  "rsi": 35,
-  "macd": {"macd": 1.2, "signal": 0.8, "histogram": 0.4},
-  "momentum": 1.8,
-  "volumeRatio": 1.4,
-  "vix": 16,
-  "sentiment": "BULLISH",
-  "writersZone": "BULLISH",
-  "candlePattern": "HAMMER"
-}
+[{
+  "LTP": 24631.3,
+  "RSI": {"rsi": "44.08", "status": "Neutral"},
+  "EMA20": {"ema": "24634.21", "status": "Bearish"},
+  "SMA50": {"sma": "24637.80", "status": "Bearish"},
+  "MACD": {"macd": "-2.72", "signal": "-2.72", "histogram": "0.00", "status": "Neutral"},
+  "VIX": {"vix": "12.36", "status": "Calm Market"},
+  "BollingerBands": {"upper": "24654.82", "lower": "24615.06", "status": "Within Bands"},
+  "CCI": {"value": "-130.28", "status": "Sell"},
+  "SuperTrend": {"status": "Bullish"},
+  "VolumeIndicators": {"obv": 0, "status": "Weak"},
+  "Aroon": {"up": "50.00", "down": "21.43", "status": "Uptrend"},
+  "ParabolicSAR": {"value": "24663.30", "status": "Bearish"},
+  "MFI": {"value": "0.00", "status": "Oversold"},
+  "PriceAction": {"score": 0, "type": "Ranging"},
+  "VolumeSpike": {"spike": false, "latestVol": 0, "avgVol": "0.00"},
+  "VolumeStrength": {"score": -1, "type": "Weak Volume"}
+}]
 ```
 
 **Response:**
@@ -120,10 +132,12 @@ Content-Type: application/json
   "signal": "BUY_CE",
   "confidence": 0.85,
   "analysis": {
-    "detected_signals": ["RSI_OVERSOLD", "MOMENTUM_STRONG_BULLISH", "VOLUME_SURGE"],
+    "detected_signals": ["RSI_NEUTRAL", "VIX_CALM", "SUPERTREND_BULLISH", "CCI_OVERSOLD", "MFI_OVERSOLD"],
     "total_strength": 2.3,
-    "vix_condition": "NORMAL_VOLATILITY",
-    "market_regime": "BULLISH_TREND"
+    "vix_condition": "LOW_VOLATILITY",
+    "market_regime": "BULLISH_TREND",
+    "ltp": 24631.3,
+    "signal_count": 5
   },
   "timestamp": "2024-01-15T10:30:00Z"
 }
@@ -158,12 +172,21 @@ In your n8n workflow, update the AI Trade Confirmation node:
      "Content-Type": "application/json"
    }
    ```
-3. **Body**: Include all technical indicators and market data
+3. **Body**: Send the complete technical indicator array from your updated code
 
 ### Environment Variable in n8n
 ```bash
 AI_MODEL_URL=https://your-app-name.onrender.com
 ```
+
+### Updated n8n Body Configuration
+```json
+{
+  "body": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators}}"
+}
+```
+
+**Note**: Make sure your technical indicators node returns the data in the exact format shown above.
 
 ## 🚨 Troubleshooting
 
@@ -182,6 +205,11 @@ AI_MODEL_URL=https://your-app-name.onrender.com
 #### Slow Response
 - Render free tier has cold starts
 - Consider upgrading to paid tier for better performance
+
+#### New Format Issues
+- Verify technical indicators return correct format
+- Check array structure in n8n output
+- Validate all required fields are present
 
 ### Performance Optimization
 
@@ -222,4 +250,38 @@ python ai_model_api_fixed.py
 
 Then use `http://localhost:5000` as your AI_MODEL_URL in n8n.
 
-This simplified AI model maintains all the professional trading logic while being compatible with cloud deployment platforms.
+## 🎯 New Technical Indicators Supported
+
+The updated AI model now supports all your comprehensive technical indicators:
+
+### **Trend Indicators**
+- **RSI**: Neutral/Oversold/Overbought analysis
+- **EMA20**: Bullish/Bearish trend detection
+- **SMA50**: Long-term trend analysis
+- **SuperTrend**: Primary trend direction
+- **Aroon**: Uptrend/Downtrend identification
+- **Parabolic SAR**: Trend reversal signals
+
+### **Momentum Indicators**
+- **MACD**: Momentum and signal line analysis
+- **CCI**: Commodity Channel Index signals
+- **Stochastic**: Overbought/Oversold conditions
+- **MFI**: Money Flow Index analysis
+- **ADX**: Trend strength measurement
+
+### **Volatility Indicators**
+- **VIX**: Market volatility assessment
+- **ATR**: Average True Range analysis
+- **Bollinger Bands**: Price position relative to bands
+
+### **Volume Indicators**
+- **Volume Spike**: Unusual volume detection
+- **Volume Strength**: Volume quality analysis
+- **OBV**: On-Balance Volume trends
+
+### **Price Action**
+- **Price Action Score**: Ranging vs Trending
+- **Candle Patterns**: Pattern recognition
+- **VWAP**: Volume Weighted Average Price
+
+This comprehensive AI model maintains all the professional trading logic while being compatible with cloud deployment platforms and your new technical indicator format.
