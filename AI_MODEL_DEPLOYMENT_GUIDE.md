@@ -284,4 +284,115 @@ The updated AI model now supports all your comprehensive technical indicators:
 - **Candle Patterns**: Pattern recognition
 - **VWAP**: Volume Weighted Average Price
 
+### **Writers Zone Analysis**
+- **Writers Zone Direction**: BULLISH/BEARISH/NEUTRAL bias
+- **Premium Ratio Analysis**: Put-Call premium distribution
+- **Market Structure**: Call/Put heavy market detection
+- **Support/Resistance Levels**: Key option strike levels
+- **Confidence Scoring**: Writers zone conviction assessment
+
+## 🔧 Updated API Usage
+
+### **New Request Format**
+The AI model now accepts both technical indicators and writers zone data:
+
+```json
+[{
+  "LTP": 24631.3,
+  "RSI": {"rsi": "44.08", "status": "Neutral"},
+  "EMA20": {"ema": "24634.21", "status": "Bearish"},
+  "SMA50": {"sma": "24637.80", "status": "Bearish"},
+  "MACD": {"macd": "-2.72", "signal": "-2.72", "histogram": "0.00", "status": "Neutral"},
+  "VIX": {"vix": "12.36", "status": "Calm Market"},
+  "BollingerBands": {"upper": "24654.82", "lower": "24615.06", "status": "Within Bands"},
+  "CCI": {"value": "-130.28", "status": "Sell"},
+  "SuperTrend": {"status": "Bullish"},
+  "VolumeIndicators": {"obv": 0, "status": "Weak"},
+  "Aroon": {"up": "50.00", "down": "21.43", "status": "Uptrend"},
+  "ParabolicSAR": {"value": "24663.30", "status": "Bearish"},
+  "MFI": {"value": "0.00", "status": "Oversold"},
+  "PriceAction": {"score": 0, "type": "Ranging"},
+  "VolumeSpike": {"spike": false, "latestVol": 0, "avgVol": "0.00"},
+  "VolumeStrength": {"score": -1, "type": "Weak Volume"},
+  
+  "writersZone": "NEUTRAL",
+  "confidence": 0,
+  "maxCELTP": 0,
+  "maxPELTP": 0,
+  "putCallPremiumRatio": 1,
+  "marketStructure": "BALANCED",
+  "supportLevels": [],
+  "resistanceLevels": []
+}]
+```
+
+### **Enhanced Response Format**
+```json
+{
+  "signal": "BUY_CE",
+  "confidence": 0.85,
+  "analysis": {
+    "detected_signals": [
+      "RSI_NEUTRAL",
+      "VIX_CALM",
+      "SUPERTREND_BULLISH",
+      "CCI_SELL",
+      "MFI_OVERSOLD",
+      "AROON_UPTREND",
+      "WRITERS_NEUTRAL",
+      "PREMIUM_RATIO_BALANCED"
+    ],
+    "total_strength": 2.3,
+    "vix_condition": "LOW_VOLATILITY",
+    "market_regime": "BULLISH_TREND",
+    "ltp": 24631.3,
+    "signal_count": 8,
+    "writers_zone": "NEUTRAL",
+    "writers_confidence": 0
+  },
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+## 🎯 n8n Integration Update
+
+### **Updated n8n Body Configuration**
+In your n8n AI Trade Confirmation node, update the body to send both technical and writers zone data:
+
+```json
+{
+  "method": "POST",
+  "url": "{{$env.AI_MODEL_URL}}/predict",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": [{
+    "LTP": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.spotPrice}}",
+    "RSI": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.rsi}}",
+    "EMA20": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.ema20}}",
+    "SMA50": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.sma50}}",
+    "MACD": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.macd}}",
+    "VIX": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.vix}}",
+    "BollingerBands": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.bollingerBands}}",
+    "CCI": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.cci}}",
+    "SuperTrend": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.superTrend}}",
+    "VolumeIndicators": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.volumeIndicators}}",
+    "Aroon": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.aroon}}",
+    "ParabolicSAR": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.parabolicSAR}}",
+    "MFI": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.mfi}}",
+    "PriceAction": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.priceAction}}",
+    "VolumeSpike": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.volumeSpike}}",
+    "VolumeStrength": "={{$node['Calculate NIFTY Technical Indicators'].json.indicators.volumeStrength}}",
+    
+    "writersZone": "={{$node['NIFTY Writers Zone Analysis'].json.writersZone}}",
+    "confidence": "={{$node['NIFTY Writers Zone Analysis'].json.confidence}}",
+    "maxCELTP": "={{$node['NIFTY Writers Zone Analysis'].json.maxCELTP}}",
+    "maxPELTP": "={{$node['NIFTY Writers Zone Analysis'].json.maxPELTP}}",
+    "putCallPremiumRatio": "={{$node['NIFTY Writers Zone Analysis'].json.putCallPremiumRatio}}",
+    "marketStructure": "={{$node['NIFTY Writers Zone Analysis'].json.marketStructure}}",
+    "supportLevels": "={{$node['NIFTY Writers Zone Analysis'].json.supportLevels}}",
+    "resistanceLevels": "={{$node['NIFTY Writers Zone Analysis'].json.resistanceLevels}}"
+  }]
+}
+```
 This comprehensive AI model maintains all the professional trading logic while being compatible with cloud deployment platforms and your new technical indicator format.
