@@ -1,1 +1,1 @@
-web: gunicorn ai_model_api_fixed:app
+web: cd backend && gunicorn ai_model_api_fixed:app --bind 0.0.0.0:$PORT

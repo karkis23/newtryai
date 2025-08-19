@@ -31,16 +31,23 @@ The original deployment failed due to pandas compilation issues on Render.com's 
 ### 2. Render Configuration
 
 #### Build Settings:
-- **Environment**: Python 3
+- **Environment**: Python 3.11.9
 - **Build Command**: `pip install -r backend/requirements_fixed.txt`
-- **Start Command**: `cd backend && gunicorn ai_model_api_fixed:app`
-- **Root Directory**: Leave empty (or set to backend if needed)
+- **Start Command**: `cd backend && gunicorn ai_model_api_fixed:app --bind 0.0.0.0:$PORT`
+- **Root Directory**: Leave empty
 
 #### Environment Variables:
 ```bash
-PYTHON_VERSION=3.11.0
+PYTHON_VERSION=3.11.9
 PORT=10000
 ```
+
+#### Alternative Configuration Files:
+I've created multiple configuration files for different deployment scenarios:
+
+1. **runtime.txt**: Specifies exact Python version
+2. **render.yaml**: Complete Render.com service configuration
+3. **Procfile**: Heroku-style process file (also works with Render)
 
 ### 3. File Structure
 
@@ -49,17 +56,35 @@ Ensure your repository has this structure:
 your-repo/
 ├── backend/
 │   ├── ai_model_api_fixed.py
-│   └── requirements_fixed.txt
+│   ├── requirements_fixed.txt
+│   ├── runtime.txt
+│   ├── render.yaml
+│   └── Procfile
 └── other-files...
 ```
 
 ### 4. Deployment Process
 
-1. **Push to GitHub**: Commit and push your changes
+1. **Push Files to GitHub**: 
+   ```bash
+   git add backend/
+   git commit -m "Add AI model with fixed deployment config"
+   git push origin main
+   ```
+
 2. **Deploy on Render**: 
    - Go to your Render dashboard
-   - Click "Deploy latest commit"
-   - Monitor build logs for any issues
+   - Click "New" → "Web Service"
+   - Connect your GitHub repository
+   - Render will automatically detect the configuration
+   - Click "Deploy"
+
+3. **Manual Configuration** (if auto-detection fails):
+   - **Build Command**: `pip install -r backend/requirements_fixed.txt`
+   - **Start Command**: `cd backend && gunicorn ai_model_api_fixed:app --bind 0.0.0.0:$PORT`
+   - **Environment Variables**: 
+     - `PYTHON_VERSION=3.11.9`
+     - `PORT=10000`
 
 ### 5. Testing Deployment
 
